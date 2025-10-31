@@ -1,0 +1,92 @@
+name: Build
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+    paths-ignore:
+      - 'helm/aux/dev-values.yaml'
+      - 'helm/aux/README.md'
+
+permissions:
+  contents: write
+
+env: 
+  IMAGE: "imgs/aux"
+
+jobs:
+  ci-pipeline:
+    runs-on: ubuntu-24.04
+    environment: main
+    steps:
+      - name: Checkout source code from Github
+        uses: actions/checkout@v5
+
+      - name: Check helm changes
+        uses: dorny/paths-filter@v3
+        id: helm
+        with:
+          filters: |
+            chart:
+              - 'helm/**'
+
+      - name: Helm lint
+        if: steps.helm.outputs.chart == 'true'
+        run: helm lint helm/*
+
+      - name: Helm template
+        if: steps.helm.outputs.chart == 'true'
+        run: helm template test helm/* -f helm/aux/dev-values.yaml
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.6
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with: 
+          scan-type: 'fs'
+          scan-ref: .
+          cache-dir: /tmp/trivy
+          format: 'table'
+          scanners: 'vuln,secret,misconfig'
+          severity: 'CRITICAL,HIGH'
+          exit-code: 0
+
+      - name: Build image
+        run: docker build --build-arg IMAGE_TAG=${{ github.sha }} -t $IMAGE:${{ github.sha }} .
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image
+        run: docker push $IMAGE:${{ github.sha }}
+
+      - name: Update Helm Chart Values
+        uses: Nextdoor/helm-set-image-tag-action@main
+        with:
+          values_files: helm/aux/dev-values.yaml
+          tag_value: ${{ github.sha }}
+          commit_branch: main
+          bump_level: null
+          helm_docs: false
+
+
+
+
