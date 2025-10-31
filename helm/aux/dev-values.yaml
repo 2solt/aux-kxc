@@ -14,7 +14,7 @@ envVars:
 image:
   repository: imgs/aux
   pullPolicy: IfNotPresent
-  tag: "5d48944a5918592fa4f02a32f8228e1cf7b2b5b2"
+  tag: "02240ef42de5a2cc068da28c08a562eb9ee6ee2c"
 resources:
   limits:
     cpu: 100m
