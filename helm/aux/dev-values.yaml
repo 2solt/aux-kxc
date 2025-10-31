@@ -1,0 +1,39 @@
+envVars:
+  - name: AWS_ACCESS_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: aws-id
+        key: key
+  - name: AWS_REGION
+    value: "eu-west-1"
+  - name: AWS_SECRET_ACCESS_KEY
+    valueFrom:
+      secretKeyRef:
+        name: aws-secret
+        key: key
+image:
+  repository: imgs/aux
+  pullPolicy: IfNotPresent
+  tag: "5d48944a5918592fa4f02a32f8228e1cf7b2b5b2"
+resources:
+  limits:
+    cpu: 100m
+    memory: 64Mi
+  requests:
+    cpu: 50m
+    memory: 32Mi
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+readinessProbe:
+  httpGet:
+    path: /livez
+    port: http
+service:
+  port: 8081
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
